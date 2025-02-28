@@ -19,7 +19,7 @@ class LinearRegressor:
     you wrote last week, or calls a new method, called *fit_gradient_descent*, not implemented (yet)
     """
 
-    def fit(self, X, y, method="least_squares", learning_rate=0.01, iterations=1000):
+    def fit(self, X, y, method="least_squares", learning_rate=0.01, iterations=1000)-> tuple[list[float], list[np.ndarray], list[np.ndarray], list[np.float16]] | None:
         """
         Fit the model using either normal equation or gradient descent.
 
@@ -32,6 +32,10 @@ class LinearRegressor:
             iterations (int): Number of iterations for gradient descent.
 
         Returns:
+            gradient (list(floar)): Gradient for the weights and each coefficient.
+            weights (list(np.ndarray)): Weight on each iteration.
+            biases (list(np.ndarray)): Bias on each iteration.
+            losses (list(np.float16)): Loss on each iteration.
             None: Modifies the model's coefficients and intercept in-place.
         """
         if method not in ["least_squares", "gradient_descent"]:
@@ -39,8 +43,8 @@ class LinearRegressor:
                 f"Method {method} not available for training linear regression."
             )
         if np.ndim(X) == 1:
-            X = X.reshape(-1, 1)
-
+            X:np.ndarray = X.reshape(-1, 1)
+        
         X_with_bias = np.insert(
             X, 0, 1, axis=1
         )  # Adding a column of ones for intercept
@@ -48,7 +52,9 @@ class LinearRegressor:
         if method == "least_squares":
             self.fit_multiple(X_with_bias, y)
         elif method == "gradient_descent":
-            self.fit_gradient_descent(X_with_bias, y, learning_rate, iterations)
+            gradients, weights, biases, losses= self.fit_gradient_descent(X, y, learning_rate, iterations)
+
+            return gradients, weights, biases, losses
 
     def fit_multiple(self, X, y):
         """
@@ -64,13 +70,16 @@ class LinearRegressor:
         Returns:
             None: Modifies the model's coefficients and intercept in-place.
         """
-        # Replace this code with the code you did in the previous laboratory session
+        X_ones_transpose:np.ndarray = np.transpose(X)
+        X_ones_transpose_X_ones:np.ndarray = np.dot(X_ones_transpose, X)
 
-        # Store the intercept and the coefficients of the model
-        self.intercept = None
-        self.coefficients = None
+        X_ones_transpose_X_ones_inv:np.ndarray = np.linalg.inv(X_ones_transpose_X_ones)
+        coefficients_matrix:np.ndarray = np.dot(np.dot(X_ones_transpose_X_ones_inv, X_ones_transpose), y)
+            
+        self.intercept:np.ndarray = coefficients_matrix[0]
+        self.coefficients:np.ndarray = coefficients_matrix[1:]
 
-    def fit_gradient_descent(self, X, y, learning_rate=0.01, iterations=1000):
+    def fit_gradient_descent(self, X, y, learning_rate=0.01, iterations=1000)-> tuple[list[float], list[np.ndarray], list[np.ndarray], list[np.float16]]:
         """
         Fit the model using either normal equation or gradient descent.
 
@@ -81,30 +90,45 @@ class LinearRegressor:
             iterations (int): Number of iterations for gradient descent.
 
         Returns:
-            None: Modifies the model's coefficients and intercept in-place.
+            gradient (list(floar)): Gradient for the weights and each coefficient.
+            weights (list(np.ndarray)): Weight on each iteration.
+            biases (list(np.ndarray)): Bias on each iteration.
+            losses (list(np.float16)): Loss on each iteration.
         """
 
         # Initialize the parameters to very small values (close to 0)
-        m = len(y)
+        m:int = len(y)
         self.coefficients = (
-            np.random.rand(X.shape[1] - 1) * 0.01
+            np.random.rand(X.shape[1]) * 0.01
         )  # Small random numbers
         self.intercept = np.random.rand() * 0.01
-
-        # Implement gradient descent (TODO)
+        
+        gradients:list[float] = []
+        weights:list[np.ndarray] = []
+        biases:list[np.ndarray] = []
+        losses:list[np.float16] = []
+    
+        # Implement gradient descent 
         for epoch in range(iterations):
-            predictions = None
-            error = predictions - y
+            predictions:np.ndarray = self.predict(X)
+            error:np.ndarray = predictions - y
 
-            # TODO: Write the gradient values and the updates for the paramenters
-            gradient = None
-            self.intercept -= None
-            self.coefficients -= None
+            # Write the gradient values and the updates for the paramenters
+            gradient:np.ndarray = X.T.dot(error) / m
+            self.intercept -= learning_rate * np.mean(error)
+            self.coefficients -= learning_rate * gradient
 
-            # TODO: Calculate and print the loss every 10 epochs
-            if epoch % 1000 == 0:
-                mse = None
+            # Calculate and print the loss every 10 epochs
+            if epoch % 100 == 0:
+                mse:np.float16 = np.mean(error ** 2)
                 print(f"Epoch {epoch}: MSE = {mse}")
+                
+            gradients.append(gradient)
+            weights.append(self.coefficients)
+            biases.append(self.intercept)
+            losses.append(mse)
+            
+        return gradients, weights, biases, losses
 
     def predict(self, X):
         """
@@ -120,13 +144,16 @@ class LinearRegressor:
         Raises:
             ValueError: If the model is not yet fitted.
         """
-
-        # Paste your code from last week
-
         if self.coefficients is None or self.intercept is None:
             raise ValueError("Model is not yet fitted")
 
-        return None
+        if np.ndim(X) == 1:
+            predictions:np.ndarray = self.intercept + self.coefficients * X
+            
+        else:
+            predictions:np.ndarray = np.dot(X, self.coefficients) + self.intercept
+            
+        return predictions
 
 
 def evaluate_regression(y_true, y_pred):
@@ -142,16 +169,13 @@ def evaluate_regression(y_true, y_pred):
     """
 
     # R^2 Score
-    # TODO
-    r_squared = None
+    r_squared:float = 1 - sum((y_true - y_pred) ** 2) / sum((y_true - np.mean(y_true)) ** 2)
 
     # Root Mean Squared Error
-    # TODO
-    rmse = None
+    rmse:np.ndarray = np.sqrt(sum((y_true - y_pred) ** 2) / len(y_true))
 
     # Mean Absolute Error
-    # TODO
-    mae = None
+    mae:float = sum(abs(y_true - y_pred)) / len(y_true)
 
     return {"R2": r_squared, "RMSE": rmse, "MAE": mae}
 
@@ -171,20 +195,25 @@ def one_hot_encode(X, categorical_indices, drop_first=False):
     """
     X_transformed = X.copy()
     for index in sorted(categorical_indices, reverse=True):
-        # TODO: Extract the categorical column
-        categorical_column = None
+        # Extract the categorical column
+        categorical_column:np.ndarray = X_transformed[:, index]
 
-        # TODO: Find the unique categories (works with strings)
-        unique_values = None
+        # Find the unique categories (works with strings)
+        unique_values:np.ndarray = np.unique(categorical_column)
 
-        # TODO: Create a one-hot encoded matrix (np.array) for the current categorical column
-        one_hot = None
+        # Create a one-hot encoded matrix (np.array) for the current categorical column
+        one_hot:np.ndarray = np.zeros((len(categorical_column), len(unique_values)))
+        for i, value in enumerate(unique_values):
+            one_hot[:, i] = (categorical_column == value).astype(int)
 
         # Optionally drop the first level of one-hot encoding
         if drop_first:
             one_hot = one_hot[:, 1:]
 
         # TODO: Delete the original categorical column from X_transformed and insert new one-hot encoded columns
-        X_transformed = None
+        X_transformed:np.ndarray = np.delete(X_transformed, index, axis=1)
+        for i in range(one_hot.shape[1]):
+            X_transformed = np.insert(X_transformed, index + i, one_hot[:, i], axis=1)
 
     return X_transformed
+
